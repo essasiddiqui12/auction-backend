@@ -10,6 +10,11 @@ export const generateToken = (user, message, statusCode, res) => {
     path: "/"
   };
 
+  if (process.env.NODE_ENV === 'production') {
+    cookieOptions.secure = true;
+    cookieOptions.sameSite = 'none';
+  }
+
   res
     .status(statusCode)
     .cookie("token", token, cookieOptions)
