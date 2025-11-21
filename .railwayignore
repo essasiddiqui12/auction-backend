@@ -1,0 +1,10 @@
+node_modules
+.git
+tmp
+.vercel
+frontend
+*.log
+dist
+build
+coverage
+
