@@ -9,16 +9,21 @@ const createTransporter = () => {
   });
 
   // Use nodemailer service-based approach (simpler and recommended)
+  // Increased timeouts significantly for Render free tier (instances may take 50+ seconds to spin up)
   return nodemailer.createTransport({
     service: process.env.EMAIL_SERVICE || 'gmail', // nodemailer handles Gmail SMTP automatically
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD // Use app-specific password for Gmail
     },
-    // Increased timeouts for Render free tier (instances may spin down)
-    connectionTimeout: 30000, // 30 seconds
-    greetingTimeout: 30000, // 30 seconds
-    socketTimeout: 30000 // 30 seconds
+    // Increased timeouts to account for Render free tier spin-up delays (50+ seconds)
+    connectionTimeout: 60000, // 60 seconds - accounts for instance wake-up time
+    greetingTimeout: 60000, // 60 seconds
+    socketTimeout: 60000, // 60 seconds
+    // Additional settings for better reliability
+    pool: true, // Use connection pooling
+    maxConnections: 1, // Limit connections
+    maxMessages: 3 // Limit messages per connection
   });
 };
 
@@ -282,14 +287,9 @@ export const sendContactFormEmail = async (contactDetails) => {
     console.log('Email will be sent to:', process.env.EMAIL_USER);
     const transporter = createTransporter();
     
-    // Verify transporter connection (non-blocking - just log if fails)
-    try {
-      await transporter.verify();
-      console.log('✅ Email transporter verified successfully');
-    } catch (verifyError) {
-      console.warn('⚠️ Email transporter verification failed (will attempt to send anyway):', verifyError.message);
-      // Don't throw - try to send anyway, some SMTP servers don't support verify()
-    }
+    // Skip verify() to avoid extra connection attempt that times out
+    // The connection will be established when sendMail() is called
+    console.log('⏭️ Skipping connection verification (will connect on send)');
     
     const mailOptions = {
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
@@ -319,19 +319,11 @@ export const sendContactFormEmail = async (contactDetails) => {
     };
     
     console.log('📤 Sending email...');
+    console.log('⏱️ Connection timeouts set to 60 seconds for Render free tier spin-up delays');
     
-    // Increased timeout for Render free tier (instances may take 30+ seconds to spin up)
-    // Use 60 seconds to account for cold starts
-    const sendEmailWithTimeout = (transporter, mailOptions, timeoutMs = 60000) => {
-      return Promise.race([
-        transporter.sendMail(mailOptions),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error(`Email sending timed out after ${timeoutMs}ms`)), timeoutMs)
-        )
-      ]);
-    };
-    
-    const info = await sendEmailWithTimeout(transporter, mailOptions, 60000);
+    // Direct sendMail call - connection timeouts are handled by transporter config
+    // No need for additional timeout wrapper since connectionTimeout is already 60s
+    const info = await transporter.sendMail(mailOptions);
     console.log('✅ Contact form email sent successfully!');
     console.log('Message ID:', info.messageId);
     console.log('Response:', info.response);
