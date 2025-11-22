@@ -274,67 +274,101 @@ export const sendAuctionEndEmail = async (userEmail, userName, auctionTitle) => 
 };
 
 // Function to send contact form emails
+// Uses HTTP API (Resend) instead of SMTP to work on Render free tier
 export const sendContactFormEmail = async (contactDetails) => {
   try {
-    // Validate email configuration
+    // Check if Resend API key is configured (preferred method for Render free tier)
+    if (process.env.RESEND_API_KEY) {
+      return await sendEmailViaResend(contactDetails);
+    }
+    
+    // Fallback to SMTP if Resend not configured (will fail on Render free tier)
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-      const error = new Error('Email service is not configured. EMAIL_USER and EMAIL_PASSWORD must be set.');
+      const error = new Error('Email service is not configured. Set RESEND_API_KEY (recommended) or EMAIL_USER/EMAIL_PASSWORD.');
       console.error('Email configuration error:', error.message);
       throw error;
     }
 
-    console.log('📧 Creating email transporter...');
+    console.log('📧 Using SMTP (may fail on Render free tier)...');
     console.log('Email will be sent to:', process.env.EMAIL_USER);
     const transporter = createTransporter();
     
-    // Skip verify() to avoid extra connection attempt that times out
-    // The connection will be established when sendMail() is called
-    console.log('⏭️ Skipping connection verification (will connect on send)');
-    
     const mailOptions = {
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-      to: process.env.EMAIL_USER, // Send to admin email
-      replyTo: contactDetails.email, // Allow replying to the sender
+      to: process.env.EMAIL_USER,
+      replyTo: contactDetails.email,
       subject: `Contact Form: ${contactDetails.subject}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #2c3e50; text-align: center;">New Contact Form Submission</h1>
-          
-          <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 20px 0;">
-            <h2 style="color: #2c3e50;">Contact Details</h2>
-            <ul style="list-style: none; padding-left: 0;">
-              <li><strong>Name:</strong> ${contactDetails.name}</li>
-              <li><strong>Email:</strong> ${contactDetails.email}</li>
-              <li><strong>Phone:</strong> ${contactDetails.phone || 'Not provided'}</li>
-              <li><strong>Subject:</strong> ${contactDetails.subject}</li>
-            </ul>
-          </div>
-
-          <div style="background-color: #e9ecef; border-radius: 10px; padding: 20px; margin: 20px 0;">
-            <h2 style="color: #2c3e50;">Message</h2>
-            <p style="white-space: pre-wrap;">${contactDetails.message}</p>
-          </div>
-        </div>
-      `
+      html: getContactFormEmailHTML(contactDetails)
     };
     
-    console.log('📤 Sending email...');
-    console.log('⏱️ Connection timeouts set to 60 seconds for Render free tier spin-up delays');
-    
-    // Direct sendMail call - connection timeouts are handled by transporter config
-    // No need for additional timeout wrapper since connectionTimeout is already 60s
+    console.log('📤 Sending email via SMTP...');
     const info = await transporter.sendMail(mailOptions);
     console.log('✅ Contact form email sent successfully!');
     console.log('Message ID:', info.messageId);
-    console.log('Response:', info.response);
     return info;
   } catch (error) {
     console.error('❌ Error sending contact form email:');
     console.error('Error message:', error.message);
     console.error('Error code:', error.code);
     console.error('Error command:', error.command);
-    console.error('Error response:', error.response);
-    console.error('Full error:', error);
     throw error;
   }
+};
+
+// Send email via Resend HTTP API (works on Render free tier)
+const sendEmailViaResend = async (contactDetails) => {
+  try {
+    // Use fetch API (built into Node.js 18+)
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM || process.env.RESEND_FROM || 'onboarding@resend.dev',
+        to: process.env.EMAIL_USER || process.env.RESEND_TO,
+        reply_to: contactDetails.email,
+        subject: `Contact Form: ${contactDetails.subject}`,
+        html: getContactFormEmailHTML(contactDetails)
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Resend API error: ${errorData.message || response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Contact form email sent via Resend!');
+    console.log('Email ID:', data.id);
+    return { messageId: data.id, response: 'sent' };
+  } catch (error) {
+    console.error('❌ Error sending email via Resend:', error.message);
+    throw error;
+  }
+};
+
+// Reusable HTML template for contact form emails
+const getContactFormEmailHTML = (contactDetails) => {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #2c3e50; text-align: center;">New Contact Form Submission</h1>
+      
+      <div style="background-color: #f8f9fa; border-radius: 10px; padding: 20px; margin: 20px 0;">
+        <h2 style="color: #2c3e50;">Contact Details</h2>
+        <ul style="list-style: none; padding-left: 0;">
+          <li><strong>Name:</strong> ${contactDetails.name}</li>
+          <li><strong>Email:</strong> ${contactDetails.email}</li>
+          <li><strong>Phone:</strong> ${contactDetails.phone || 'Not provided'}</li>
+          <li><strong>Subject:</strong> ${contactDetails.subject}</li>
+        </ul>
+      </div>
+
+      <div style="background-color: #e9ecef; border-radius: 10px; padding: 20px; margin: 20px 0;">
+        <h2 style="color: #2c3e50;">Message</h2>
+        <p style="white-space: pre-wrap;">${contactDetails.message}</p>
+      </div>
+    </div>
+  `;
 }; 
