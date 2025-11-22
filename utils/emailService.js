@@ -266,10 +266,27 @@ export const sendAuctionEndEmail = async (userEmail, userName, auctionTitle) => 
 // Function to send contact form emails
 export const sendContactFormEmail = async (contactDetails) => {
   try {
+    // Validate email configuration
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
+      const error = new Error('Email service is not configured. EMAIL_USER and EMAIL_PASSWORD must be set.');
+      console.error('Email configuration error:', error.message);
+      throw error;
+    }
+
+    console.log('Creating email transporter...');
     const transporter = createTransporter();
     
+    // Verify transporter connection (non-blocking - just log if fails)
+    try {
+      await transporter.verify();
+      console.log('Email transporter verified successfully');
+    } catch (verifyError) {
+      console.warn('Email transporter verification failed (will attempt to send anyway):', verifyError.message);
+      // Don't throw - try to send anyway, some SMTP servers don't support verify()
+    }
+    
     const mailOptions = {
-      from: process.env.EMAIL_FROM,
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to: process.env.EMAIL_USER, // Send to admin email
       replyTo: contactDetails.email, // Allow replying to the sender
       subject: `Contact Form: ${contactDetails.subject}`,
@@ -295,11 +312,18 @@ export const sendContactFormEmail = async (contactDetails) => {
       `
     };
     
+    console.log('Sending email to:', process.env.EMAIL_USER);
     const info = await transporter.sendMail(mailOptions);
     console.log('Contact form email sent successfully:', info.messageId);
     return info;
   } catch (error) {
     console.error('Error sending contact form email:', error);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response,
+      stack: error.stack
+    });
     throw error;
   }
 }; 

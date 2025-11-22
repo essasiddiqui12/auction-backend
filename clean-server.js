@@ -18,6 +18,7 @@ import superAdminRouter from './router/superAdminRoutes.js';
 import emailTestRouter from './routes/emailTestRoutes.js';
 import contactRouter from './routes/contactRoutes.js';
 import cronRouter from './routes/cronRoutes.js';
+import healthRouter from './routes/healthRoutes.js';
 
 // Import cron jobs
 import { endedAuctionCron } from './automation/endedAuctionCron.js';
@@ -146,6 +147,7 @@ app.use('/api/v1/superadmin', superAdminRouter);
 app.use('/api/v1/test', emailTestRouter);
 app.use('/api/v1/contact', contactRouter);
 app.use('/api/v1/cron', cronRouter);
+app.use('/api/v1/health', healthRouter);
 
 // Start cron jobs conditionally
 if (process.env.RUN_CRONS === 'true') {

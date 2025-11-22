@@ -6,29 +6,61 @@ export const submitContactForm = catchAsyncErrors(async (req, res, next) => {
   try {
     const { name, email, subject, message, phone } = req.body;
     
+    console.log('Contact form submission received:', { name, email, subject, phone: phone ? 'provided' : 'not provided' });
+    
+    // Validate required fields
     if (!name || !email || !subject || !message) {
       return next(new ErrorHandler("Please fill all required fields", 400));
     }
     
-    // Validate phone number format if provided
-    if (phone && !phone.match(/^\+\d{1,4}\s\d{5,15}$/)) {
-      return next(new ErrorHandler("Please provide a valid international phone number with country code.", 400));
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return next(new ErrorHandler("Please provide a valid email address", 400));
     }
     
-    await sendContactFormEmail({
-      name,
-      email,
-      subject,
-      message,
-      phone
+    // Phone is optional - accept any format since it's not required
+    let formattedPhone = null;
+    if (phone && typeof phone === 'string' && phone.trim()) {
+      formattedPhone = phone.trim();
+      // Just log the phone, don't validate since it's optional
+      console.log('Phone provided:', formattedPhone);
+    }
+    
+    // Log the contact form submission
+    console.log('Contact form submission received:', {
+      name: name.trim(),
+      email: email.trim(),
+      subject: subject.trim(),
+      phone: formattedPhone || 'not provided',
+      messageLength: message.trim().length
     });
     
+    // Try to send email, but don't block the response
+    sendContactFormEmail({
+      name: name.trim(),
+      email: email.trim(),
+      subject: subject.trim(),
+      message: message.trim(),
+      phone: formattedPhone
+    }).then(() => {
+      console.log('Contact form email sent successfully');
+    }).catch((emailError) => {
+      console.error('Email sending failed (non-blocking):', emailError.message);
+      // Email failure is logged but doesn't affect the response
+    });
+    
+    // Return success immediately
     res.status(200).json({
       success: true,
       message: "Your message has been sent successfully"
     });
   } catch (error) {
     console.error('Error in contact form submission:', error);
-    return next(new ErrorHandler("Failed to send message. Please try again later.", 500));
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack
+    });
+    return next(new ErrorHandler(error.message || "Failed to send message. Please try again later.", 500));
   }
 }); 
