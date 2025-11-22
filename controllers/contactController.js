@@ -88,4 +88,18 @@ export const submitContactForm = catchAsyncErrors(async (req, res, next) => {
     });
     return next(new ErrorHandler(error.message || "Failed to send message. Please try again later.", 500));
   }
-}); 
+});
+
+// Get all contact form submissions (for admin)
+export const getContactSubmissions = catchAsyncErrors(async (req, res, next) => {
+  try {
+    const submissions = await ContactForm.find({}).sort({ createdAt: -1 });
+    res.status(200).json({
+      success: true,
+      count: submissions.length,
+      data: submissions
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, 500));
+  }
+});
