@@ -13,37 +13,37 @@
 
 ## Solutions to Enable Email Sending
 
-### Option 1: Upgrade Render Plan (Recommended)
+### ✅ Option 1: Use Resend HTTP API (IMPLEMENTED - Recommended for Free Tier)
+
+**Already implemented in the code!** Just need to configure:
+
+1. **Sign up for Resend** (free): https://resend.com
+   - Free tier: 3,000 emails/month
+   - No credit card required
+
+2. **Get your API key:**
+   - Go to Resend Dashboard → API Keys
+   - Create a new API key
+   - Copy the key
+
+3. **Add to Render Environment Variables:**
+   - Go to Render Dashboard → Your backend service → Environment
+   - Add these variables:
+     ```
+     RESEND_API_KEY=re_xxxxxxxxxxxxx (your API key)
+     RESEND_FROM=onboarding@resend.dev (or your verified domain email)
+     EMAIL_USER=essa.siddiquimahan@gmail.com (where to send contact forms)
+     ```
+   - Or use `EMAIL_FROM` if you already have it set
+
+4. **Redeploy** - Emails will now work via HTTP API (no SMTP needed!)
+
+**The code automatically uses Resend if `RESEND_API_KEY` is set, otherwise falls back to SMTP.**
+
+### Option 2: Upgrade Render Plan
 - Upgrade to Render's paid plan ($7/month)
 - Paid plans allow outbound SMTP connections
 - Your current nodemailer + Gmail setup will work immediately
-
-### Option 2: Use HTTP-Based Email Service (Free Tier Available)
-Use services that provide HTTP APIs instead of SMTP:
-
-#### A. Resend (Recommended - Free Tier: 3,000 emails/month)
-```bash
-npm install resend
-```
-
-Update `utils/emailService.js` to use Resend:
-```javascript
-import { Resend } from 'resend';
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-export const sendContactFormEmail = async (contactDetails) => {
-  const { data, error } = await resend.emails.send({
-    from: process.env.EMAIL_FROM,
-    to: process.env.EMAIL_USER,
-    replyTo: contactDetails.email,
-    subject: `Contact Form: ${contactDetails.subject}`,
-    html: `...`
-  });
-  
-  if (error) throw error;
-  return data;
-};
-```
 
 #### B. SendGrid (Free Tier: 100 emails/day)
 Similar HTTP API approach
