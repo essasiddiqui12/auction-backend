@@ -15,10 +15,10 @@ const createTransporter = () => {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD // Use app-specific password for Gmail
     },
-    // Add timeout settings to prevent hanging
-    connectionTimeout: 15000, // 15 seconds
-    greetingTimeout: 15000, // 15 seconds
-    socketTimeout: 15000 // 15 seconds
+    // Increased timeouts for Render free tier (instances may spin down)
+    connectionTimeout: 30000, // 30 seconds
+    greetingTimeout: 30000, // 30 seconds
+    socketTimeout: 30000 // 30 seconds
   });
 };
 
@@ -320,8 +320,9 @@ export const sendContactFormEmail = async (contactDetails) => {
     
     console.log('📤 Sending email...');
     
-    // Add timeout to email sending
-    const sendEmailWithTimeout = (transporter, mailOptions, timeoutMs = 15000) => {
+    // Increased timeout for Render free tier (instances may take 30+ seconds to spin up)
+    // Use 60 seconds to account for cold starts
+    const sendEmailWithTimeout = (transporter, mailOptions, timeoutMs = 60000) => {
       return Promise.race([
         transporter.sendMail(mailOptions),
         new Promise((_, reject) => 
@@ -330,7 +331,7 @@ export const sendContactFormEmail = async (contactDetails) => {
       ]);
     };
     
-    const info = await sendEmailWithTimeout(transporter, mailOptions, 15000);
+    const info = await sendEmailWithTimeout(transporter, mailOptions, 60000);
     console.log('✅ Contact form email sent successfully!');
     console.log('Message ID:', info.messageId);
     console.log('Response:', info.response);
