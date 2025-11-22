@@ -273,15 +273,16 @@ export const sendContactFormEmail = async (contactDetails) => {
       throw error;
     }
 
-    console.log('Creating email transporter...');
+    console.log('📧 Creating email transporter...');
+    console.log('Email will be sent to:', process.env.EMAIL_USER);
     const transporter = createTransporter();
     
     // Verify transporter connection (non-blocking - just log if fails)
     try {
       await transporter.verify();
-      console.log('Email transporter verified successfully');
+      console.log('✅ Email transporter verified successfully');
     } catch (verifyError) {
-      console.warn('Email transporter verification failed (will attempt to send anyway):', verifyError.message);
+      console.warn('⚠️ Email transporter verification failed (will attempt to send anyway):', verifyError.message);
       // Don't throw - try to send anyway, some SMTP servers don't support verify()
     }
     
@@ -312,18 +313,19 @@ export const sendContactFormEmail = async (contactDetails) => {
       `
     };
     
-    console.log('Sending email to:', process.env.EMAIL_USER);
+    console.log('📤 Sending email...');
     const info = await transporter.sendMail(mailOptions);
-    console.log('Contact form email sent successfully:', info.messageId);
+    console.log('✅ Contact form email sent successfully!');
+    console.log('Message ID:', info.messageId);
+    console.log('Response:', info.response);
     return info;
   } catch (error) {
-    console.error('Error sending contact form email:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      response: error.response,
-      stack: error.stack
-    });
+    console.error('❌ Error sending contact form email:');
+    console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error command:', error.command);
+    console.error('Error response:', error.response);
+    console.error('Full error:', error);
     throw error;
   }
 }; 

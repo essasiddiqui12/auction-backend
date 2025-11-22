@@ -43,10 +43,16 @@ export const submitContactForm = catchAsyncErrors(async (req, res, next) => {
       subject: subject.trim(),
       message: message.trim(),
       phone: formattedPhone
-    }).then(() => {
-      console.log('Contact form email sent successfully');
+    }).then((info) => {
+      console.log('✅ Contact form email sent successfully!');
+      console.log('Email Message ID:', info.messageId);
+      console.log('Email sent to:', process.env.EMAIL_USER);
     }).catch((emailError) => {
-      console.error('Email sending failed (non-blocking):', emailError.message);
+      console.error('❌ Email sending failed (non-blocking):');
+      console.error('Error message:', emailError.message);
+      console.error('Error code:', emailError.code);
+      console.error('Error response:', emailError.response);
+      console.error('Full error:', emailError);
       // Email failure is logged but doesn't affect the response
     });
     
