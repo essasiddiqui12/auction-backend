@@ -8,20 +8,42 @@ const createTransporter = () => {
     passwordSet: !!process.env.EMAIL_PASSWORD
   });
 
+  // Use explicit SMTP settings for Gmail instead of service shortcut
+  // This is more reliable on cloud platforms like Render
+  const isGmail = (process.env.EMAIL_SERVICE || 'gmail').toLowerCase() === 'gmail';
+  
+  if (isGmail) {
+    return nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true, // true for 465, false for other ports
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      },
+      // Add timeout and connection settings
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000, // 10 seconds
+      socketTimeout: 10000, // 10 seconds
+      tls: {
+        rejectUnauthorized: false // Allow self-signed certificates if needed
+      }
+    });
+  }
+  
+  // Fallback to service-based config for other email providers
   return nodemailer.createTransport({
-    service: process.env.EMAIL_SERVICE || 'gmail', // e.g., 'gmail'
+    service: process.env.EMAIL_SERVICE || 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD // Use app-specific password for Gmail
+      pass: process.env.EMAIL_PASSWORD
     },
-    // Add timeout and connection settings
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000, // 10 seconds
-    socketTimeout: 10000, // 10 seconds
-    // Use secure connection
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
     secure: true,
     tls: {
-      rejectUnauthorized: false // Allow self-signed certificates if needed
+      rejectUnauthorized: false
     }
   });
 };
